@@ -33,9 +33,9 @@ func Load(path string) (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			APIPort:    8080,
-			ProxyPort:  9090,
-			TargetPort: 22,
+			APIPort:    8000,
+			ProxyPort:  9000,
+			TargetPort: 8888,
 		},
 		Client: ClientConfig{
 			Interval: 60,

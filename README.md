@@ -9,20 +9,20 @@ Below is a real-world scenario: a cloud server with a static IP proxies traffic 
 ```mermaid
 flowchart LR
     subgraph home ["Home Network (dynamic IP)"]
-        OpenClaw[":11434 OpenClaw"]
+        OpenClaw[":8888 OpenClaw"]
         ddnsClient["ddns-client"]
     end
 
     subgraph vps ["Cloud VPS (1.2.3.4)"]
-        apiPort[":8080 API"]
-        proxyPort[":9090 TCP Proxy"]
+        apiPort[":8000 API"]
+        proxyPort[":9000 TCP Proxy"]
     end
 
     User["User / App"]
 
     ddnsClient -- "POST /report {token}\n(every 60s)" --> apiPort
     User -- "TCP connect" --> proxyPort
-    proxyPort -. "forward to dynamic-ip:11434" .-> OpenClaw
+    proxyPort -. "forward to dynamic-ip:8888" .-> OpenClaw
 ```
 
 **Deployment steps:**
@@ -31,9 +31,9 @@ flowchart LR
 
 ```yaml
 server:
-  api_port: 8080
-  proxy_port: 9090
-  target_port: 11434    # OpenClaw port on the Mac mini
+  api_port: 8000
+  proxy_port: 9000
+  target_port: 8888     # OpenClaw port on the Mac mini
   token: "your-secret"
 ```
 
@@ -41,14 +41,14 @@ server:
 
 ```yaml
 client:
-  server_url: "http://1.2.3.4:8080"
+  server_url: "http://1.2.3.4:8000"
   token: "your-secret"
   interval: 60
 ```
 
 3. The client reports the Mac mini's current IP to the server every 60 seconds.
 
-4. Any request to `1.2.3.4:9090` is transparently forwarded to `<mac-mini-ip>:11434`.
+4. Any request to `1.2.3.4:9000` is transparently forwarded to `<mac-mini-ip>:8888`.
 
 **Communication flow:**
 
@@ -59,13 +59,13 @@ sequenceDiagram
     participant Mac as Mac mini (dynamic IP)
 
     loop Every 60s
-        Mac->>VPS: POST /report {token} via :8080
+        Mac->>VPS: POST /report {token} via :8000
         VPS-->>Mac: 200 OK (records IP)
     end
 
-    App->>VPS: TCP connect to :9090
+    App->>VPS: TCP connect to :9000
     VPS->>VPS: Lookup Mac mini IP from store
-    VPS->>Mac: Dial <dynamic-ip>:11434
+    VPS->>Mac: Dial <dynamic-ip>:8888
     Mac-->>VPS: OpenClaw response
     VPS-->>App: Forward response
 ```
@@ -88,13 +88,13 @@ cp config.example.yaml config.yaml
 
 ```yaml
 server:
-  api_port: 8080        # A2 - HTTP API port
-  proxy_port: 9090      # A1 - TCP proxy port
-  target_port: 22       # B1 - Target port on the dynamic IP machine
+  api_port: 8000        # A2 - HTTP API port
+  proxy_port: 9000      # A1 - TCP proxy port
+  target_port: 8888     # B1 - Target port on the dynamic IP machine
   token: "my-secret"    # Shared authentication token
 
 client:
-  server_url: "http://your-server:8080"
+  server_url: "http://your-server:8000"
   token: "my-secret"
   interval: 60          # Report interval in seconds
 ```
@@ -111,8 +111,8 @@ Run on the machine with a static IP:
 
 The server exposes two ports:
 
-- **Port A2** (default 8080) - HTTP API for IP registration and querying
-- **Port A1** (default 9090) - TCP proxy that forwards traffic to the registered dynamic IP
+- **Port A2** (default 8000) - HTTP API for IP registration and querying
+- **Port A1** (default 9000) - TCP proxy that forwards traffic to the registered dynamic IP
 
 ### Client
 
@@ -126,10 +126,10 @@ The client reports its IP to the server immediately on startup, then every `inte
 
 ### Mock Service (for testing)
 
-Run on the client machine to verify that the proxy is forwarding traffic correctly. It listens on a TCP port (default 22, matching `server.target_port`) and prints every incoming connection and its data to stdout.
+Run on the client machine to verify that the proxy is forwarding traffic correctly. It listens on a TCP port (default 8888, matching `server.target_port`) and prints every incoming connection and its data to stdout.
 
 ```bash
-./ddns-mockservice -port 22
+./ddns-mockservice -port 8888
 ```
 
 Example output:
@@ -145,18 +145,18 @@ To quickly test the full pipeline locally:
 
 ```bash
 # Terminal 1: start the mock service on the target port
-./ddns-mockservice -port 22
+./ddns-mockservice -port 8888
 
 # Terminal 2: start the server
 ./ddns-server -config config.yaml
 
 # Terminal 3: register 127.0.0.1 as the dynamic IP
-curl -X POST http://localhost:8080/report \
+curl -X POST http://localhost:8000/report \
   -H 'Content-Type: application/json' \
   -d '{"token":"my-secret","ip":"127.0.0.1"}'
 
 # Terminal 4: send data through the proxy
-echo "hello world" | nc localhost 9090
+echo "hello world" | nc localhost 9000
 ```
 
 ## API
@@ -166,7 +166,7 @@ echo "hello world" | nc localhost 9090
 Register the client's dynamic IP.
 
 ```bash
-curl -X POST http://server:8080/report \
+curl -X POST http://server:8000/report \
   -H 'Content-Type: application/json' \
   -d '{"token": "my-secret"}'
 ```
@@ -174,7 +174,7 @@ curl -X POST http://server:8080/report \
 The server extracts the client IP from the request. To specify an IP explicitly:
 
 ```bash
-curl -X POST http://server:8080/report \
+curl -X POST http://server:8000/report \
   -H 'Content-Type: application/json' \
   -d '{"token": "my-secret", "ip": "1.2.3.4"}'
 ```
@@ -184,7 +184,7 @@ curl -X POST http://server:8080/report \
 Query the currently registered dynamic IP.
 
 ```bash
-curl http://server:8080/ip
+curl http://server:8000/ip
 ```
 
 Response:
