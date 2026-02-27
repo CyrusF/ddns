@@ -1,0 +1,10 @@
+server:
+  api_port: 8080        # A2 - HTTP API port for IP reporting and querying
+  proxy_port: 9090      # A1 - TCP proxy port, forwards traffic to dynamic IP
+  target_port: 22       # B1 - Target port on the dynamic IP machine
+  token: "my-secret"    # Shared secret to authenticate IP reports
+
+client:
+  server_url: "http://your-server:8080"   # Server API endpoint
+  token: "my-secret"                       # Must match server token
+  interval: 60                             # Report interval in seconds

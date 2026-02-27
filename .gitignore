@@ -1,0 +1,6 @@
+dist/
+ddns-server
+ddns-client
+ddns-mockservice
+*.exe
+config.yaml
