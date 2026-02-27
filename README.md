@@ -2,6 +2,74 @@
 
 A lightweight Go service that lets a machine with a dynamic IP register itself with a server on a static IP. The server then proxies TCP traffic to the registered dynamic IP.
 
+## Deployment Example
+
+Below is a real-world scenario: a cloud server with a static IP proxies traffic to a Mac mini at home running [OpenClaw](https://github.com/nicognaW/OpenClaw), whose IP changes dynamically.
+
+```mermaid
+flowchart LR
+    subgraph home ["Home Network (dynamic IP)"]
+        OpenClaw[":11434 OpenClaw"]
+        ddnsClient["ddns-client"]
+    end
+
+    subgraph vps ["Cloud VPS (1.2.3.4)"]
+        apiPort[":8080 API"]
+        proxyPort[":9090 TCP Proxy"]
+    end
+
+    User["User / App"]
+
+    ddnsClient -- "POST /report {token}\n(every 60s)" --> apiPort
+    User -- "TCP connect" --> proxyPort
+    proxyPort -. "forward to dynamic-ip:11434" .-> OpenClaw
+```
+
+**Deployment steps:**
+
+1. On the cloud VPS (`1.2.3.4`), run `ddns-server` with config:
+
+```yaml
+server:
+  api_port: 8080
+  proxy_port: 9090
+  target_port: 11434    # OpenClaw port on the Mac mini
+  token: "your-secret"
+```
+
+2. On the Mac mini, run `ddns-client` with config:
+
+```yaml
+client:
+  server_url: "http://1.2.3.4:8080"
+  token: "your-secret"
+  interval: 60
+```
+
+3. The client reports the Mac mini's current IP to the server every 60 seconds.
+
+4. Any request to `1.2.3.4:9090` is transparently forwarded to `<mac-mini-ip>:11434`.
+
+**Communication flow:**
+
+```mermaid
+sequenceDiagram
+    participant App as User / App
+    participant VPS as Cloud VPS (1.2.3.4)
+    participant Mac as Mac mini (dynamic IP)
+
+    loop Every 60s
+        Mac->>VPS: POST /report {token} via :8080
+        VPS-->>Mac: 200 OK (records IP)
+    end
+
+    App->>VPS: TCP connect to :9090
+    VPS->>VPS: Lookup Mac mini IP from store
+    VPS->>Mac: Dial <dynamic-ip>:11434
+    Mac-->>VPS: OpenClaw response
+    VPS-->>App: Forward response
+```
+
 ## Build
 
 ```bash
