@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -53,6 +54,8 @@ func main() {
 	}
 }
 
+const httpResponse = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 3\r\nConnection: close\r\n\r\nok\n"
+
 func handleConn(conn net.Conn, id uint64) {
 	defer conn.Close()
 	remote := conn.RemoteAddr().String()
@@ -73,6 +76,12 @@ func handleConn(conn net.Conn, id uint64) {
 			} else {
 				fmt.Print(hex.Dump(data))
 			}
+
+			if isHTTP(data) {
+				conn.Write([]byte(httpResponse))
+				fmt.Printf("[#%d] %s  HTTP request detected, sent 200 OK and closing\n", id, time.Now().Format("15:04:05"))
+				return
+			}
 		}
 		if err != nil {
 			if err != io.EOF {
@@ -82,6 +91,20 @@ func handleConn(conn net.Conn, id uint64) {
 			return
 		}
 	}
+}
+
+func isHTTP(data []byte) bool {
+	methods := [][]byte{
+		[]byte("GET "), []byte("POST "), []byte("PUT "),
+		[]byte("DELETE "), []byte("HEAD "), []byte("OPTIONS "),
+		[]byte("PATCH "), []byte("CONNECT "),
+	}
+	for _, m := range methods {
+		if bytes.HasPrefix(data, m) {
+			return true
+		}
+	}
+	return false
 }
 
 func isPrintable(data []byte) bool {
