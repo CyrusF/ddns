@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	port := flag.Int("port", 22, "port to listen on (should match server.target_port)")
+	port := flag.Int("port", 8888, "port to listen on (should match server.target_port)")
 	flag.Parse()
 
 	addr := fmt.Sprintf(":%d", *port)
